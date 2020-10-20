@@ -9,6 +9,7 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okio.*;
 import org.jetbrains.annotations.NotNull;
 import ru.tinkoff.invest.openapi.Context;
 import ru.tinkoff.invest.openapi.exceptions.OpenApiException;
@@ -74,11 +75,39 @@ public abstract class BaseContextImpl implements Context {
                 throw new WrongTokenException();
             default:
                 final InputStream errorStream = Objects.requireNonNull(response.body()).byteStream();
-                final RestResponse<ErrorPayload> answerBody = mapper.readValue(errorStream, errorTypeReference);
-                final ErrorPayload error = answerBody.payload;
-                final String message = "Ошибка при исполнении запроса, trackingId = " + answerBody.trackingId;
-                logger.severe(message);
-                throw new OpenApiException(error.message, error.code);
+                //final RestResponse<ErrorPayload> answerBody = mapper.readValue(errorStream, errorTypeReference);
+                //final ErrorPayload error = answerBody.payload;
+                //final String message = "Ошибка при исполнении запроса, trackingId = " + answerBody.trackingId;
+                //logger.severe(message);
+                //throw new OpenApiException(error.message, error.code);
+                throw safeOpenApiException(errorStream);
+        }
+    }
+
+    private OpenApiException safeOpenApiException(InputStream errorStream) {
+
+        try {
+            if (errorStream.available() == 0) {
+                return new OpenApiException("No available content from stream", "001");
+            }
+            String content = null;
+            try (BufferedSource source = Okio.buffer(Okio.source(errorStream))) {
+                content = source.readUtf8();
+                if (content.isEmpty()) {
+                    return new OpenApiException("Read content is empty ", "002");
+
+                }
+            } catch (IOException e) {
+                return new OpenApiException("Unable to read content from error stream:" + e.toString(), "003");
+            }
+
+            final RestResponse<ErrorPayload> answerBody = mapper.readValue(content, errorTypeReference);
+            final ErrorPayload error = answerBody.payload;
+            String message = "Error while processing request, trackingId = " + answerBody.trackingId;
+            logger.severe(message);
+            return new OpenApiException(message, error.code);
+        } catch (Exception e) {
+            return new OpenApiException("Unable to read 'ErrorPayload' from error stream:" + e.toString(), "009");
         }
     }
 
