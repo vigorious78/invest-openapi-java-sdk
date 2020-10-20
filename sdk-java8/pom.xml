@@ -6,11 +6,11 @@
     <parent>
         <groupId>ru.tinkoff.invest</groupId>
         <artifactId>openapi-java-sdk</artifactId>
-        <version>0.5.1</version>
+        <version>0.5-SNAPSHOT</version>
     </parent>
     <artifactId>openapi-java-sdk-java8</artifactId>
     <packaging>jar</packaging>
-
+    <version>0.5.1</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Implementation of Core-interfaces within Java 8</description>
 
